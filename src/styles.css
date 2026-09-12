@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", "Iowan Old Style", Palatino, serif;
+  --font-sans: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --color-bg: #0b0c0a;
+  --color-surface: #141512;
+  --color-raised: #1c1d19;
+  --color-inset: #10110e;
+  --color-fg: #eceae4;
+  --color-muted: #9a978c;
+  --color-subtle: #6e6c64;
+  --color-border: #2a2b26;
+  --color-accent: #8fad9a;
+  --color-accent-fg: #0b0c0a;
+  --color-human: #8fad9a;
+  --color-mixed: #c4a574;
+  --color-machine: #c47a6a;
+  --color-paper: #f3efe4;
+  --color-paper-fg: #1d1c16;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --shadow-border: 0 0 0 1px rgba(236, 234, 228, 0.08);
+  --shadow-border-hover: 0 0 0 1px rgba(236, 234, 228, 0.14);
+  --shadow-paper: 0 22px 48px -28px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(29, 28, 22, 0.08);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-micro: 80ms;
+  --motion-quick: 150ms;
+  --motion-fast: 250ms;
+  --motion-slow: 400ms;
+}
+
+@layer base {
+  html {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--color-bg);
+    color: var(--color-fg);
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+.paper-page {
+  background: var(--color-paper);
+  color: var(--color-paper-fg);
+}
+
+.paper-mark {
+  color: inherit;
+  background: color-mix(in oklab, var(--color-machine) 22%, var(--color-paper));
+  text-decoration: underline wavy color-mix(in oklab, var(--color-machine) 80%, transparent);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 1.5px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.paper-mark-med {
+  background: color-mix(in oklab, var(--color-mixed) 22%, var(--color-paper));
+  text-decoration-color: color-mix(in oklab, var(--color-mixed) 80%, transparent);
+}
+
+.paper-mark-low {
+  background: color-mix(in oklab, var(--color-muted) 16%, var(--color-paper));
+  text-decoration-color: var(--color-muted);
+}
+
+.paper-mark[data-active="true"] {
+  background: color-mix(in oklab, var(--color-machine) 36%, var(--color-paper));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,3 +1,4 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -23,3 +24,13 @@ htmlcov/
 models/
 *.bin
 *.safetensors
+
+# Node / web
+node_modules/
+.vercel/
+.tanstack/
+.output/
+dist/
+*.local
+screenshots/
+artifacts/

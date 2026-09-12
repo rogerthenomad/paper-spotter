@@ -58,20 +58,49 @@ export function ngrams(tokens: string[], n: number): string[] {
   return out;
 }
 
+export function wordSpans(text: string): { start: number; end: number; word: string }[] {
+  const re = new RegExp(WORD_RE.source, WORD_RE.flags);
+  const out: { start: number; end: number; word: string }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    out.push({ start: m.index, end: m.index + m[0].length, word: m[0] });
+  }
+  return out;
+}
+
+/** Adaptive windows: 300-word Pangram/NBER size on long chapters, finer on excerpts. */
+export function windowSpec(wordCount: number): { size: number; overlap: number } {
+  if (wordCount >= 1200) return { size: 300, overlap: 50 };
+  if (wordCount >= 360) return { size: 180, overlap: 40 };
+  if (wordCount >= 160) return { size: 90, overlap: 20 };
+  return { size: Math.max(wordCount, 40), overlap: 0 };
+}
+
 export function chunkByWords(
   text: string,
-  chunkWords = 180,
-  overlap = 30,
-): { start: number; end: number; text: string }[] {
-  const toks = words(text);
-  if (toks.length === 0) return [];
-  const chunks: { start: number; end: number; text: string }[] = [];
+  chunkWords?: number,
+  overlap?: number,
+): { start: number; end: number; startChar: number; endChar: number; text: string }[] {
+  const spans = wordSpans(text);
+  if (spans.length === 0) return [];
+  const spec = windowSpec(spans.length);
+  const size = chunkWords ?? spec.size;
+  const ov = overlap ?? spec.overlap;
+  const chunks: { start: number; end: number; startChar: number; endChar: number; text: string }[] = [];
   let i = 0;
-  while (i < toks.length) {
-    const j = Math.min(toks.length, i + chunkWords);
-    chunks.push({ start: i, end: j, text: toks.slice(i, j).join(" ") });
-    if (j >= toks.length) break;
-    i = Math.max(i + chunkWords - overlap, i + 1);
+  while (i < spans.length) {
+    const j = Math.min(spans.length, i + size);
+    const startChar = spans[i].start;
+    const endChar = spans[j - 1].end;
+    chunks.push({
+      start: i,
+      end: j,
+      startChar,
+      endChar,
+      text: text.slice(startChar, endChar),
+    });
+    if (j >= spans.length) break;
+    i = Math.max(i + size - ov, i + 1);
   }
   return chunks;
 }

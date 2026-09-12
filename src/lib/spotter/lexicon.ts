@@ -40,16 +40,22 @@ export const AI_CLICHES: { phrase: string; weight: number }[] = [
   { phrase: "tapestry", weight: 1.6 },
   { phrase: "landscape of", weight: 1.1 },
   { phrase: "in the realm of", weight: 1.5 },
+  { phrase: "in the context of", weight: 0.9 },
   { phrase: "it is important to note", weight: 1.3 },
   { phrase: "it's important to note", weight: 1.3 },
+  { phrase: "it should be noted", weight: 1.2 },
   { phrase: "it is worth noting", weight: 1.2 },
+  { phrase: "it is well known that", weight: 1.3 },
+  { phrase: "it is widely accepted", weight: 1.2 },
   { phrase: "a comprehensive overview", weight: 1.2 },
+  { phrase: "a comprehensive framework", weight: 1.1 },
   { phrase: "this paper aims to", weight: 0.9 },
   { phrase: "in today's rapidly", weight: 1.5 },
   { phrase: "rapidly evolving", weight: 1.1 },
   { phrase: "play a crucial role", weight: 1.2 },
   { phrase: "plays a crucial role", weight: 1.2 },
   { phrase: "plays a pivotal role", weight: 1.3 },
+  { phrase: "plays an important role", weight: 1.0 },
   { phrase: "pivotal role", weight: 1.0 },
   { phrase: "underscores the", weight: 1.2 },
   { phrase: "underscore the", weight: 1.2 },
@@ -92,6 +98,12 @@ export const AI_CLICHES: { phrase: string; weight: number }[] = [
   { phrase: "a wide range of", weight: 0.5 },
   { phrase: "in recent years", weight: 0.6 },
   { phrase: "has attracted considerable attention", weight: 1.3 },
+  { phrase: "remarkable capabilities", weight: 1.2 },
+  { phrase: "exciting area", weight: 1.0 },
+  { phrase: "state-of-the-art", weight: 0.6 },
+  { phrase: "studies have shown", weight: 1.1 },
+  { phrase: "research has shown", weight: 1.0 },
+  { phrase: "it has been shown", weight: 1.0 },
 ];
 
 export const TRANSITION_STACK = [
@@ -107,6 +119,9 @@ export const TRANSITION_STACK = [
   "meanwhile",
   "subsequently",
   "accordingly",
+  "firstly",
+  "secondly",
+  "lastly",
 ];
 
 export const HEDGES = [

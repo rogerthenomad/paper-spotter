@@ -12,8 +12,10 @@ function EnginesPage() {
         <p className="text-[11px] uppercase tracking-[0.2em] text-muted">Detector stack</p>
         <h1 className="mt-2 font-display text-4xl tracking-tight">Engines</h1>
         <p className="mt-3 text-pretty text-muted">
-          The original Paper Spotter toolkit promised adapters for the open detector literature.
-          This lab runs faithful statistical proxies in the browser, then an optional live Grok 4.5
+          2026 literature (RAID, Pangram/NBER windowing, Studies in Educational Evaluation) is
+          blunt: a single “% AI” is not a verdict, hybrid chapters fool every detector, and short
+          excerpts explode in false positives. This lab runs local statistical proxies, a
+          passage map, hidden-Unicode cleanup, and citation flags — then an optional Grok 4.5
           pass. GPU originals (Falcon, GPT-J, T5-3B) are cited, not silently faked.
         </p>
       </header>

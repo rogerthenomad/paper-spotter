@@ -27,6 +27,8 @@ export interface WindowScore {
   index: number;
   startWord: number;
   endWord: number;
+  startChar: number;
+  endChar: number;
   preview: string;
   aiScore: number;
   label: Label;
@@ -60,7 +62,7 @@ export interface ForensicReport {
   caveats: string[];
 }
 
-export type SuggestionKind = "cliche" | "cadence" | "hollow";
+export type SuggestionKind = "cliche" | "cadence" | "hollow" | "citation" | "artifact" | "punctuation" | "word" | "paragraph";
 export type SuggestionSeverity = "high" | "med" | "low";
 export type SuggestionStatus = "open" | "accepted" | "dismissed";
 
@@ -76,6 +78,41 @@ export interface Suggestion {
   recommendation: string;
   rewrite: string;
   status: SuggestionStatus;
+  /** False for document-wide findings (hidden Unicode) so the page is not fully underlined. */
+  highlight?: boolean;
+  /** Extra word/sentence replacements the author can pick instead of `rewrite`. */
+  alternatives?: string[];
+  /** Replace every whole-word match of `match` (AI vocab). */
+  replaceAll?: boolean;
+  match?: string;
+}
+
+export type EvidenceLevel = "insufficient" | "human" | "uncertain" | "hybrid" | "machine";
+
+export interface Evidence {
+  level: EvidenceLevel;
+  summary: string;
+  reasons: string[];
+  hotWindows: number;
+  windowCount: number;
+  styleShift: number;
+  meanWindow: number;
+}
+
+export interface ArtifactHit {
+  code: string;
+  name: string;
+  count: number;
+  detail: string;
+}
+
+export interface ArtifactReport {
+  count: number;
+  zeroWidth: number;
+  bidi: number;
+  oddSpace: number;
+  homoglyphs: number;
+  kinds: ArtifactHit[];
 }
 
 export interface ScanReport {
@@ -97,6 +134,10 @@ export interface ScanReport {
   forensic: ForensicReport | null;
   suggestions: Suggestion[];
   acceptedSkip: string[];
+  evidence: Evidence;
+  artifacts: ArtifactReport;
+  /** GPTZero-style document mix, percent of words. */
+  mix: { ai: number; mixed: number; human: number };
 }
 
 export interface ArxivPaper {

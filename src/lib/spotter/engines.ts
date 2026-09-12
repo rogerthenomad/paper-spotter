@@ -109,8 +109,13 @@ function typicality(text: string): number {
   const biU = uniqueRatio(bi);
   const triU = uniqueRatio(tri);
   const ranks = rankMass(toks);
-  // Lower uniqueness + higher head-mass = more typical / machine-like.
   return clamp01(0.45 * (1 - biU) + 0.25 * (1 - triU) + 0.3 * ranks.top10);
+}
+
+function tokenTypicality(w: string): number {
+  const r = COMMON_RANK[w];
+  if (r == null) return w.length > 12 ? 0.12 : 0.32;
+  return clamp01(1 - Math.log(r + 1) / Math.log(220));
 }
 
 function engine(
@@ -151,21 +156,22 @@ export function stylometryEngine(text: string): EngineResult {
   const cl = clicheScore(text).score;
   const wordLens = toks.map((w) => w.length);
   const wlCv = stdev(wordLens) / Math.max(mean(wordLens), 1);
+  const emDash = (text.match(/[—–]/g) ?? []).length / Math.max(sents.length, 1);
 
-  // Length-invariant: Yule's K (repetition) + burstiness + tells. Raw TTR lies on short text.
   const ai =
-    0.28 * clamp01((k - 80) / 140) +
-    0.22 * clamp01((0.72 - burst) / 0.5) +
-    0.28 * cl +
+    0.26 * clamp01((k - 80) / 140) +
+    0.2 * clamp01((0.72 - burst) / 0.5) +
+    0.26 * cl +
     0.14 * clamp01(trans / 0.22) +
-    0.08 * clamp01((0.22 - wlCv) / 0.15);
+    0.08 * clamp01((0.22 - wlCv) / 0.15) +
+    0.06 * clamp01((emDash - 0.15) / 0.6);
 
   return engine(
     "stylometry",
-    "Stylometry",
+    "Stylometry / burstiness",
     "stylometry",
     2024,
-    "Burstiness, Yule's K, academic tells",
+    "Burstiness, Yule's K, em-dash rate (GPTZero-style features)",
     ai,
     {
       burstiness: Number(burst.toFixed(3)),
@@ -173,6 +179,7 @@ export function stylometryEngine(text: string): EngineResult {
       yulesK: Number(k.toFixed(1)),
       meanSentence: Number(mean(lens).toFixed(2)),
       transitions: Number(trans.toFixed(3)),
+      emDashPerSentence: Number(emDash.toFixed(3)),
     },
     false,
   );
@@ -283,7 +290,6 @@ export function fastDetectEngine(text: string): EngineResult {
     n += 1;
   }
   const meanSurp = surprise / Math.max(n, 1);
-  // Local self-model: machines are overconfident (low surprise under their own n-grams, but globally repetitive).
   const cl = clicheScore(text).score;
   const trans = transitionRate(text);
   const uni = uniqueRatio(bi);
@@ -344,7 +350,6 @@ export function radarEngine(text: string): EngineResult {
   const orig = typicality(text) * 0.6 + clicheScore(text).score * 0.4;
   const para = paraphrase(text);
   const after = typicality(para) * 0.6 + clicheScore(para).score * 0.4;
-  // Robust AI signal survives paraphrase.
   const stable = 1 - Math.abs(orig - after);
   const ai = clamp01(0.55 * orig + 0.45 * (orig > 0.45 ? stable : 1 - stable));
   return engine(
@@ -360,7 +365,7 @@ export function radarEngine(text: string): EngineResult {
       stability: Number(stable.toFixed(3)),
     },
     true,
-    "Paraphrase-invariance proxy; original is an adversarially trained RoBERTa.",
+    "Paraphrase-invariance proxy; original is an adversarially trained RoBERTa. RAID 2024: paraphrase is the hard case.",
   );
 }
 
@@ -387,6 +392,43 @@ export function ghostbusterEngine(text: string): EngineResult {
     },
     true,
     "Weak-feature linear ensemble (original uses Ada/Davinci logprobs).",
+  );
+}
+
+/** Min-K% (Shi et al., ICLR 2024): machines stay typical even in their least-typical tokens. */
+export function minKEngine(text: string): EngineResult {
+  const toks = lowerWords(text);
+  if (toks.length < 20) {
+    return engine(
+      "min-k",
+      "Min-K%",
+      "zero-shot",
+      2024,
+      "Shi et al., ICLR 2024",
+      0.5,
+      { note: "too short" },
+      true,
+    );
+  }
+  const vals = toks.map(tokenTypicality).sort((a, b) => a - b);
+  const k = Math.max(1, Math.floor(toks.length * 0.2));
+  const minK = mean(vals.slice(0, k));
+  const cl = clicheScore(text).score;
+  const ai = clamp01(0.7 * clamp01((minK - 0.22) / 0.4) + 0.3 * cl);
+  return engine(
+    "min-k",
+    "Min-K%",
+    "zero-shot",
+    2024,
+    "Shi et al., ICLR 2024",
+    ai,
+    {
+      minK: Number(minK.toFixed(3)),
+      k: k,
+      tokens: toks.length,
+    },
+    true,
+    "Mean typicality of the lowest 20% of tokens. Original uses source-model log-prob; this ranks against academic English.",
   );
 }
 
@@ -467,15 +509,18 @@ export function phdSignals(text: string): PhdSignals {
 }
 
 export function windowScores(text: string): WindowScore[] {
-  return chunkByWords(text, 160, 24).map((c, index) => {
+  return chunkByWords(text).map((c, index) => {
     const sty = stylometryEngine(c.text).aiScore ?? 0.5;
     const cl = clicheScore(c.text).score;
     const zp = zippyEngine(c.text).aiScore ?? 0.5;
-    const aiScore = clamp01(0.42 * sty + 0.32 * cl + 0.26 * zp);
+    const mk = minKEngine(c.text).aiScore ?? 0.5;
+    const aiScore = clamp01(0.36 * sty + 0.28 * cl + 0.2 * zp + 0.16 * mk);
     return {
       index,
       startWord: c.start,
       endWord: c.end,
+      startChar: c.startChar,
+      endChar: c.endChar,
       preview: c.text.slice(0, 140) + (c.text.length > 140 ? "…" : ""),
       aiScore,
       label: labelFromScore(aiScore),
@@ -493,6 +538,7 @@ export function runLocalEngines(text: string): EngineResult[] {
     binocularsEngine(text),
     radarEngine(text),
     ghostbusterEngine(text),
+    minKEngine(text),
     phdRegisterEngine(text),
   ];
 }
@@ -512,6 +558,7 @@ export function ensembleOf(results: EngineResult[]): { score: number; agreement:
     "fast-detectgpt": 0.7,
     detectgpt: 0.6,
     radar: 1.1,
+    "min-k": 1.0,
   };
   let num = 0;
   let den = 0;

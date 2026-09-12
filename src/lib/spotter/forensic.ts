@@ -86,6 +86,7 @@ Return ONLY JSON:
       try {
         const res = await fetch("https://api.x.ai/v1/chat/completions", {
           method: "POST",
+          signal: AbortSignal.timeout(28000),
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${apiKey}`,

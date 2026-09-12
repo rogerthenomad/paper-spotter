@@ -39,7 +39,7 @@ export function ScanLab() {
         </Button>
       </header>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
         <div className="rounded-2xl bg-inset p-3 sm:p-5">
           <ManuscriptView
             title={scan.title}

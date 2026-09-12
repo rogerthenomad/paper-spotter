@@ -39,7 +39,7 @@ export const rewritePassages = createServerFn({ method: "POST" })
       const passages = data.passages.slice(0, 8).map((p) => ({
         id: p.id,
         issue: p.issue.slice(0, 240),
-        excerpt: p.excerpt.slice(0, 500),
+        excerpt: p.excerpt.slice(0, 1600),
       }));
       if (passages.length === 0) {
         return { ok: false, error: "No passages left to rewrite." };
@@ -63,6 +63,7 @@ Format:
       try {
         const res = await fetch("https://api.x.ai/v1/chat/completions", {
           method: "POST",
+          signal: AbortSignal.timeout(28000),
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${apiKey}`,
@@ -70,7 +71,7 @@ Format:
           body: JSON.stringify({
             model: "grok-4.5",
             temperature: 0.3,
-            max_tokens: 1400,
+            max_tokens: 2200,
             messages: [
               {
                 role: "system",

@@ -260,6 +260,46 @@ export const DETECTOR_PAPERS = [
       "Features from weaker language models, then a linear classifier. We ensemble cheap stylometric weak learners with published-style weights.",
   },
   {
+    id: "min-k",
+    name: "Min-K%",
+    family: "zero-shot" as const,
+    year: 2024,
+    citation: "Shi et al., ICLR 2024",
+    venue: "ICLR 2024",
+    blurb:
+      "Average log-prob of the least-typical k% of tokens. Machines stay typical even in the tail. Browser proxy ranks against academic English.",
+  },
+  {
+    id: "raid",
+    name: "RAID benchmark",
+    family: "supervised" as const,
+    year: 2024,
+    citation: "Dugan et al., ACL 2024",
+    venue: "ACL 2024",
+    blurb:
+      "The hard case is paraphrased / humanized text. RAID is why we keep a paraphrase-stability proxy (RADAR) and refuse to treat a single score as proof.",
+  },
+  {
+    id: "pangram-windows",
+    name: "Windowed scoring",
+    family: "phd" as const,
+    year: 2026,
+    citation: "Pangram practice; Goldsmith-Pinkham 2026 NBER/arXiv census",
+    venue: "NBER / arXiv 2026",
+    blurb:
+      "Score ~300-word windows, not one document percentage. Hybrid dissertations need this map — many 2025–26 papers have only a few hot windows.",
+  },
+  {
+    id: "unicode-artifacts",
+    name: "Unicode artifacts",
+    family: "forensic" as const,
+    year: 2026,
+    citation: "Hellmeier, ICISSP 2026; Originality.ai invisible-text tests",
+    venue: "ICISSP 2026",
+    blurb:
+      "Zero-width characters, bidi overrides, and Cyrillic/Greek homoglyphs are humanizer / watermark leftovers — not typical model output. Strip, then re-score.",
+  },
+  {
     id: "dna-gpt",
     name: "DNA-GPT",
     family: "rewrite" as const,

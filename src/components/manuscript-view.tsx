@@ -16,8 +16,13 @@ export function ManuscriptView({
   onSelect: (id: string) => void;
 }) {
   const marks = suggestions
-    .filter((s) => s.status === "open")
-    .sort((a, b) => a.start - b.start);
+    .filter((s) => {
+      if (s.status !== "open" || s.end <= s.start) return false;
+      if (s.id === activeId) return true;
+      if (s.highlight === false) return false;
+      return true;
+    })
+    .sort((a, b) => a.start - b.start || b.end - a.end);
 
   useEffect(() => {
     if (!activeId) return;
@@ -52,11 +57,15 @@ export function ManuscriptView({
               role="button"
               data-active={activeId === p.id}
               data-sev={p.severity}
+              data-kind={p.kind}
               className={cn(
                 "paper-mark cursor-pointer rounded-sm",
                 p.severity === "high" && "paper-mark-high",
                 p.severity === "med" && "paper-mark-med",
                 p.severity === "low" && "paper-mark-low",
+                p.kind === "citation" && "paper-mark-cite",
+                p.kind === "word" && "paper-mark-word",
+                p.kind === "paragraph" && "paper-mark-para",
               )}
               onClick={() => onSelect(p.id)}
               onKeyDown={(e) => {

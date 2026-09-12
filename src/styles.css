@@ -98,6 +98,24 @@
   background: color-mix(in oklab, var(--color-machine) 36%, var(--color-paper));
 }
 
+.paper-mark-cite {
+  background: color-mix(in oklab, var(--color-mixed) 18%, var(--color-paper));
+  text-decoration-style: dotted;
+  text-decoration-color: color-mix(in oklab, var(--color-mixed) 90%, transparent);
+}
+
+.paper-mark-word {
+  background: color-mix(in oklab, var(--color-machine) 16%, var(--color-paper));
+  text-decoration: underline solid color-mix(in oklab, var(--color-machine) 85%, transparent);
+  text-underline-offset: 0.12em;
+  text-decoration-thickness: 2px;
+}
+
+.paper-mark-para {
+  background: color-mix(in oklab, var(--color-machine) 12%, var(--color-paper));
+  text-decoration: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -1,6 +1,7 @@
 import { AI_CLICHES, TRANSITION_STACK } from "./lexicon.ts";
 import { normalize, sentences, words } from "./text.ts";
 import type { Suggestion, SuggestionKind, SuggestionSeverity } from "./types.ts";
+import { replaceAllWord } from "./vocab.ts";
 
 /** Conservative phrase swaps — never invent facts, numbers, or citations. */
 export const PHRASE_FIXES: { phrase: string; rewrite: string }[] = [
@@ -15,19 +16,26 @@ export const PHRASE_FIXES: { phrase: string; rewrite: string }[] = [
   { phrase: "it's important to note that", rewrite: "" },
   { phrase: "it is important to note", rewrite: "" },
   { phrase: "it's important to note", rewrite: "" },
+  { phrase: "it should be noted that", rewrite: "" },
+  { phrase: "it should be noted", rewrite: "" },
   { phrase: "it is worth noting that", rewrite: "" },
   { phrase: "it is worth noting", rewrite: "" },
+  { phrase: "it is well known that", rewrite: "" },
+  { phrase: "it is widely accepted that", rewrite: "" },
   { phrase: "it is evident that", rewrite: "" },
   { phrase: "as an illustrative example", rewrite: "for example" },
   { phrase: "in today's rapidly", rewrite: "in this" },
+  { phrase: "in the context of", rewrite: "in" },
   { phrase: "a comprehensive overview", rewrite: "a survey" },
   { phrase: "a comprehensive tapestry", rewrite: "a survey" },
+  { phrase: "a comprehensive framework", rewrite: "a method" },
   { phrase: "rich tapestry", rewrite: "mix" },
   { phrase: "intricate interplay", rewrite: "link" },
   { phrase: "in the realm of", rewrite: "in" },
   { phrase: "have played a pivotal role", rewrite: "were central" },
   { phrase: "played a pivotal role", rewrite: "was central" },
   { phrase: "plays a pivotal role", rewrite: "is central" },
+  { phrase: "plays an important role", rewrite: "matters" },
   { phrase: "play a crucial role", rewrite: "matter" },
   { phrase: "plays a crucial role", rewrite: "matters" },
   { phrase: "we propose a novel", rewrite: "we propose" },
@@ -78,6 +86,12 @@ export const PHRASE_FIXES: { phrase: string; rewrite: string }[] = [
   { phrase: "delve into", rewrite: "examine" },
   { phrase: "delve", rewrite: "examine" },
   { phrase: "tapestry", rewrite: "set" },
+  { phrase: "remarkable capabilities", rewrite: "results" },
+  { phrase: "exciting area", rewrite: "field" },
+  { phrase: "state-of-the-art", rewrite: "current" },
+  { phrase: "firstly", rewrite: "first" },
+  { phrase: "secondly", rewrite: "second" },
+  { phrase: "lastly", rewrite: "last" },
 ];
 
 const KIND_COPY: Record<
@@ -96,6 +110,26 @@ const KIND_COPY: Record<
   hollow: {
     title: "Empty claim",
     recommendation: "Cut the sentence, or attach a result, limitation, or citation.",
+  },
+  citation: {
+    title: "Unsourced claim",
+    recommendation: "Name the paper, give a year, or drop the sentence.",
+  },
+  artifact: {
+    title: "Hidden characters",
+    recommendation: "Strip invisible Unicode, then re-score.",
+  },
+  punctuation: {
+    title: "Em-dash stack",
+    recommendation: "ChatGPT-family prose over-uses em dashes. Break into two sentences or use a comma.",
+  },
+  word: {
+    title: "AI vocab",
+    recommendation: "Swap the generator word for a plain verb or noun. Accept replaces every occurrence.",
+  },
+  paragraph: {
+    title: "Paragraph rewrite",
+    recommendation: "Replace the whole paragraph with a tighter scholarly version. Check that no claim was invented.",
   },
 };
 
@@ -180,7 +214,7 @@ function describe(
   strippedTransition: boolean,
   kind: SuggestionKind,
 ): string {
-  const quoted = hits.slice(0, 3).map((h) => `“${h.phrase}”`);
+  const quoted = hits.slice(0, 3).map((h) => `\u201c${h.phrase}\u201d`);
   if (kind === "hollow") {
     return quoted.length
       ? `After stripping ${quoted.join(", ")}, nothing specific remains.`
@@ -188,13 +222,13 @@ function describe(
   }
   if (kind === "cadence") {
     return strippedTransition
-      ? `Stacked academic connective${quoted.length ? ` plus ${quoted.join(", ")}` : ""} — typical model related-work cadence.`
+      ? `Stacked academic connective${quoted.length ? ` plus ${quoted.join(", ")}` : ""} \u2014 typical model related-work cadence.`
       : `Uniform model rhythm${quoted.length ? `: ${quoted.join(", ")}` : ""}.`;
   }
   if (quoted.length === 1) {
-    return `${quoted[0]} is a 2025–26 generator tell. Prefer a specific method, number, or named prior.`;
+    return `${quoted[0]} is a 2025\u201326 generator tell. Prefer a specific method, number, or named prior.`;
   }
-  return `Stacks ${quoted.join(", ")} — the academic-LLM register.`;
+  return `Stacks ${quoted.join(", ")} \u2014 the academic-LLM register.`;
 }
 
 function severityOf(
@@ -206,6 +240,32 @@ function severityOf(
   if (hits >= 2 || (stripped && hits >= 1)) return "high";
   if (hits >= 1 || stripped) return "med";
   return "low";
+}
+
+export function punctuationSuggestions(text: string): Suggestion[] {
+  const source = normalize(text);
+  const out: Suggestion[] = [];
+  for (const span of sentenceSpans(source)) {
+    const n = (span.text.match(/[\u2014\u2013]/g) ?? []).length;
+    if (n < 3) continue;
+    const next = capitalize(
+      tidy(span.text.replace(/\s*[\u2014\u2013]\s*/g, ", ")).replace(/,\s*,/g, ","),
+    );
+    out.push({
+      id: `punct-${span.start}`,
+      kind: "punctuation",
+      severity: n >= 3 ? "high" : "med",
+      start: span.start,
+      end: span.end,
+      excerpt: span.text,
+      title: KIND_COPY.punctuation.title,
+      issue: `This sentence uses ${n} em/en dashes. Dense em-dash stacking is a ChatGPT-family tell (not an invisible watermark).`,
+      recommendation: KIND_COPY.punctuation.recommendation,
+      rewrite: next === span.text ? span.text : next,
+      status: "open",
+    });
+  }
+  return out;
 }
 
 export function buildSuggestions(text: string): Suggestion[] {
@@ -243,16 +303,67 @@ export function buildSuggestions(text: string): Suggestion[] {
     });
   }
 
+  return out;
+}
+
+export function mergeSuggestions(lists: Suggestion[][]): Suggestion[] {
   const rank: Record<SuggestionSeverity, number> = { high: 0, med: 1, low: 2 };
-  out.sort((a, b) => rank[a.severity] - rank[b.severity] || a.start - b.start);
-  return out.slice(0, 18);
+  const kindRank: Record<SuggestionKind, number> = {
+    artifact: 0,
+    citation: 1,
+    hollow: 2,
+    cadence: 3,
+    cliche: 4,
+    punctuation: 5,
+    paragraph: 1,
+    word: 6,
+  };
+  const all = lists.flat();
+  const wordsS = all
+    .filter((s) => s.kind === "word")
+    .sort((a, b) => rank[a.severity] - rank[b.severity] || a.start - b.start)
+    .slice(0, 14);
+  const paras = all
+    .filter((s) => s.kind === "paragraph")
+    .sort((a, b) => rank[a.severity] - rank[b.severity] || a.start - b.start)
+    .slice(0, 4);
+  const rest = all.filter((s) => s.kind !== "word" && s.kind !== "paragraph");
+  rest.sort(
+    (a, b) =>
+      rank[a.severity] - rank[b.severity] ||
+      kindRank[a.kind] - kindRank[b.kind] ||
+      a.start - b.start,
+  );
+  const kept: Suggestion[] = [];
+  for (const s of rest) {
+    if (s.highlight === false || s.end <= s.start) {
+      kept.push(s);
+      continue;
+    }
+    const overlap = kept.some(
+      (k) => k.highlight !== false && k.end > k.start && s.start < k.end && s.end > k.start,
+    );
+    if (overlap) continue;
+    kept.push(s);
+  }
+  return [...paras, ...kept.slice(0, 18), ...wordsS];
 }
 
 export function applyRewriteToText(
   text: string,
   suggestion: Suggestion,
+  rewriteOverride?: string,
 ): string {
-  const insert = suggestion.rewrite;
+  const insert = rewriteOverride ?? suggestion.rewrite;
+  if (suggestion.replaceAll && suggestion.match) {
+    return replaceAllWord(text, suggestion.match, insert);
+  }
+  if (suggestion.kind === "artifact" && insert) {
+    return insert.trim();
+  }
+  if (suggestion.end <= suggestion.start) {
+    return insert || text;
+  }
   let next = text.slice(0, suggestion.start) + insert + text.slice(suggestion.end);
   next = next.replace(/[ \t]{2,}/g, " ");
   next = next.replace(/\n{3,}/g, "\n\n");

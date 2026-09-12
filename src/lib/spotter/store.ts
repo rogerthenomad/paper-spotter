@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { dismissedKeys, scanText } from "./scan";
+import { dismissedKeys, scanText, withReport } from "./scan";
 import { applyRewriteToText } from "./suggestions";
+import { stripArtifacts } from "./artifacts";
 import type { ForensicReport, ScanReport } from "./types";
 
 interface SpotterState {
@@ -13,16 +14,8 @@ interface SpotterState {
   attachForensic: (id: string, forensic: ForensicReport) => void;
   attachRewrites: (id: string, rewrites: { id: string; rewrite: string }[]) => void;
   dismissSuggestion: (scanId: string, suggestionId: string) => void;
-  acceptSuggestion: (scanId: string, suggestionId: string) => void;
-}
-
-function withSuggestions(scan: ScanReport): ScanReport {
-  if (Array.isArray(scan.suggestions) && Array.isArray(scan.acceptedSkip)) return scan;
-  return {
-    ...scan,
-    suggestions: Array.isArray(scan.suggestions) ? scan.suggestions : [],
-    acceptedSkip: Array.isArray(scan.acceptedSkip) ? scan.acceptedSkip : [],
-  };
+  acceptSuggestion: (scanId: string, suggestionId: string, rewrite?: string) => void;
+  stripHidden: (scanId: string) => void;
 }
 
 export const useSpotterStore = create<SpotterState>()(
@@ -32,7 +25,7 @@ export const useSpotterStore = create<SpotterState>()(
       activeId: null,
       addScan: (scan) =>
         set((s) => ({
-          scans: [withSuggestions(scan), ...s.scans].slice(0, 40),
+          scans: [withReport(scan), ...s.scans].slice(0, 40),
           activeId: scan.id,
         })),
       setActive: (id) => set({ activeId: id }),
@@ -73,15 +66,18 @@ export const useSpotterStore = create<SpotterState>()(
               : x,
           ),
         })),
-      acceptSuggestion: (scanId, suggestionId) =>
+      acceptSuggestion: (scanId, suggestionId, rewrite) =>
         set((s) => ({
           scans: s.scans.map((x) => {
             if (x.id !== scanId) return x;
             const sug = (x.suggestions ?? []).find((g) => g.id === suggestionId);
             if (!sug || sug.status !== "open") return x;
-            const nextText = applyRewriteToText(x.text, sug);
+            const chosen = rewrite ?? sug.rewrite;
+            const nextText = applyRewriteToText(x.text, sug, chosen);
             const skip = [...(x.acceptedSkip ?? [])];
-            if (sug.rewrite.trim()) skip.push(sug.rewrite.toLowerCase().slice(0, 80));
+            if (chosen.trim() && sug.kind !== "artifact" && sug.kind !== "word") {
+              skip.push(chosen.toLowerCase().slice(0, 80));
+            }
             const next = scanText({
               text: nextText,
               title: x.title,
@@ -96,11 +92,32 @@ export const useSpotterStore = create<SpotterState>()(
             return next;
           }),
         })),
+      stripHidden: (scanId) =>
+        set((s) => ({
+          scans: s.scans.map((x) => {
+            if (x.id !== scanId) return x;
+            const next = scanText({
+              text: stripArtifacts(x.text),
+              title: x.title,
+              source: x.source,
+              sourceKind: x.sourceKind,
+              id: x.id,
+              createdAt: x.createdAt,
+              keepDismissed: dismissedKeys(x.suggestions ?? []),
+              acceptedSkip: x.acceptedSkip ?? [],
+            });
+            next.forensic = x.forensic;
+            return next;
+          }),
+        })),
     }),
-    { name: "paper-spotter-v2" },
+    { name: "paper-spotter-v3" },
   ),
 );
 
 export function useActiveScan(): ScanReport | null {
-  return useSpotterStore((s) => s.scans.find((x) => x.id === s.activeId) ?? null);
+  return useSpotterStore((s) => {
+    const raw = s.scans.find((x) => x.id === s.activeId);
+    return raw ? withReport(raw) : null;
+  });
 }

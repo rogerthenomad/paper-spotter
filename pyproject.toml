@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "paper-spotter"
+version = "0.1.0"
+description = "Unified open-source toolkit that runs papers through multiple AI-text detectors."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Roger Wong Won" }]
+keywords = ["ai-detection", "llm", "stylometry", "detectgpt", "binoculars", "academic"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "typer>=0.12",
+  "rich>=13.7",
+  "pydantic>=2.6",
+  "python-docx>=1.1",
+  "pypdf>=4.2",
+]
+
+[project.optional-dependencies]
+classifiers = ["transformers>=4.40", "torch", "accelerate"]
+binoculars = ["binoculars"]
+fast-detect = ["fast-detect-gpt"]
+radar = ["transformers>=4.40", "torch"]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+all = ["paper-spotter[classifiers]"]
+
+[project.scripts]
+paper-spotter = "paper_spotter.cli:app"
+spotter = "paper_spotter.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/rogerthenomad/paper-spotter"
+Source = "https://github.com/rogerthenomad/paper-spotter"
+Upstream-list = "https://github.com/oskar-j/awesome-ai-spotter"
+
+[tool.hatch.build.targets.wheel]
+packages = ["paper_spotter"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

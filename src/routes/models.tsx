@@ -7,11 +7,11 @@ export const Route = createFileRoute("/models")({ component: ModelsPage });
 
 function ModelsPage() {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-4">
       <header className="max-w-2xl">
         <p className="text-[11px] uppercase tracking-[0.2em] text-muted">September 2026</p>
-        <h1 className="mt-2 font-display text-4xl tracking-tight">Frontier generators</h1>
-        <p className="mt-3 text-pretty text-muted">
+        <h1 className="mt-1 font-display text-2xl tracking-tight">Frontier generators</h1>
+        <p className="mt-2 text-sm text-pretty text-muted">
           Attribution targets for the committee read. Dissertations drafted in 2025–26 usually
           carry fingerprints from this list — not GPT-3.5. Scores are stylistic hypotheses, not
           identifications.

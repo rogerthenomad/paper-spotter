@@ -43,9 +43,9 @@ export function ManuscriptView({
   if (cursor < text.length) parts.push(text.slice(cursor));
 
   return (
-    <article className="paper-page mx-auto w-full max-w-3xl rounded-xl px-6 py-8 text-paper-fg shadow-[var(--shadow-paper)] sm:px-10 sm:py-10">
-      <h2 className="font-display text-2xl leading-snug tracking-tight text-balance">{title}</h2>
-      <p className="mt-6 whitespace-pre-wrap font-display text-base leading-[1.7] sm:text-lg">
+    <article className="paper-page mx-auto w-full max-w-3xl rounded-lg px-5 py-6 text-paper-fg shadow-[var(--shadow-paper)] sm:px-8 sm:py-8">
+      <h2 className="font-display text-xl leading-snug tracking-tight text-balance sm:text-2xl">{title}</h2>
+      <p className="mt-4 whitespace-pre-wrap font-display text-[15px] leading-[1.65] sm:text-base">
         {parts.map((p, i) =>
           typeof p === "string" ? (
             <span key={`t-${i}`}>{p}</span>

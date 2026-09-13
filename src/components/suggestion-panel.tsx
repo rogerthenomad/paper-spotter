@@ -1,9 +1,10 @@
 import { useMutation } from "@tanstack/react-query";
-import { Check, Copy, Eraser, Loader2, PenLine, ScanSearch, X } from "lucide-react";
+import { Check, Loader2, PenLine, ScanSearch, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SourceDesk } from "./source-desk";
 import { runForensicPass } from "@/lib/spotter/forensic";
-import { reportMarkdown } from "@/lib/spotter/readiness";
 import { rewritePassages } from "@/lib/spotter/rewrite";
+import { extractOsint } from "@/lib/spotter/osint";
 import { useSpotterStore } from "@/lib/spotter/store";
 import type {
   EvidenceLevel,
@@ -15,10 +16,9 @@ import type {
 } from "@/lib/spotter/types";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { ScoreRing } from "./score-ring";
 import { cn } from "@/lib/utils";
 
-type Tab = "sentences" | "words" | "paragraphs";
+type Tab = "sentences" | "words" | "paragraphs" | "sources";
 
 const SENTENCE_KINDS = new Set<SuggestionKind>([
   "cliche",
@@ -69,6 +69,7 @@ function evidenceCopy(level: EvidenceLevel): string {
 function inTab(s: Suggestion, tab: Tab): boolean {
   if (tab === "words") return s.kind === "word";
   if (tab === "paragraphs") return s.kind === "paragraph";
+  if (tab === "sources") return false;
   return SENTENCE_KINDS.has(s.kind);
 }
 
@@ -93,54 +94,41 @@ export function SuggestionPanel({
   const shown = open.filter((s) => inTab(s, tab));
   const mix = scan.mix ?? { ai: 0, mixed: 0, human: 100 };
   const ev = scan.evidence;
+  const sourceN = useMemo(() => extractOsint(scan.text).length, [scan.text]);
   const counts = useMemo(
     () => ({
       sentences: open.filter((s) => SENTENCE_KINDS.has(s.kind)).length,
       words: open.filter((s) => s.kind === "word").length,
       paragraphs: open.filter((s) => s.kind === "paragraph").length,
+      sources: sourceN,
     }),
-    [open],
+    [open, sourceN],
   );
 
   return (
-    <aside className="flex flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto">
-      <div className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
-        <div className="flex items-center gap-4">
-          <ScoreRing
-            score={1 - scan.ensembleAiScore}
-            label={scan.ensembleLabel}
-            size={96}
-            caption="Voice"
-          />
-          <div className="min-w-0">
-            <Badge tone={EV_TONE[ev?.level ?? "uncertain"]}>
-              {evidenceCopy(ev?.level ?? "uncertain")}
-            </Badge>
-            <p className="mt-2 text-sm leading-relaxed text-fg">{ev?.summary}</p>
-            <p className="mt-1 text-xs text-subtle">{scan.wordCount.toLocaleString()} words</p>
-          </div>
+    <aside className="flex h-full min-h-0 flex-col">
+      <div className="shrink-0 border-b border-border px-3 py-2">
+        <div className="flex items-center gap-2">
+          <Badge tone={EV_TONE[ev?.level ?? "uncertain"]}>
+            {evidenceCopy(ev?.level ?? "uncertain")}
+          </Badge>
+          <span className="text-xs tabular-nums text-subtle">{scan.wordCount.toLocaleString()} words</span>
         </div>
-        <div className="mt-4 grid grid-cols-3 gap-1">
-          <MixPill label="AI" value={mix.ai} tone="ai" />
-          <MixPill label="Mixed" value={mix.mixed} tone="mixed" />
-          <MixPill label="Human" value={mix.human} tone="human" />
+        <p className="mt-1 line-clamp-2 text-xs leading-snug text-muted">{ev?.summary}</p>
+        <div className="mt-2 grid grid-cols-3 gap-1 sm:hidden">
+          <MiniMix label="AI" value={mix.ai} tone="ai" />
+          <MiniMix label="Mix" value={mix.mixed} tone="mixed" />
+          <MiniMix label="Human" value={mix.human} tone="human" />
         </div>
-        {scan.warnings.slice(0, 1).map((w) => (
-          <p key={w} className="mt-3 text-xs text-mixed">
-            {w}
-          </p>
-        ))}
       </div>
 
-      <PassageMap scan={scan} />
-      <ActionRow scan={scan} />
-
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-surface p-1 shadow-[var(--shadow-border)]">
+      <div className="grid shrink-0 grid-cols-4 gap-0.5 border-b border-border bg-surface p-1">
         {(
           [
             ["sentences", "Sentences", counts.sentences],
             ["words", "Words", counts.words],
             ["paragraphs", "Paragraphs", counts.paragraphs],
+            ["sources", "Sources", counts.sources],
           ] as const
         ).map(([id, label, n]) => (
           <button
@@ -148,48 +136,58 @@ export function SuggestionPanel({
             type="button"
             onClick={() => setTab(id)}
             className={cn(
-              "rounded-lg px-2 py-2 text-center text-xs transition-colors duration-[var(--motion-quick)]",
+              "rounded-md px-1 py-1.5 text-center text-[11px] transition-colors duration-[var(--motion-quick)]",
               tab === id ? "bg-raised text-fg" : "text-muted hover:text-fg",
             )}
           >
             <div className="font-medium">{label}</div>
-            <div className="mt-0.5 tabular-nums text-subtle">{n}</div>
+            <div className="tabular-nums text-subtle">{n}</div>
           </button>
         ))}
       </div>
 
-      <RewriteBar scan={scan} open={shown} tab={tab} />
-
-      {shown.length === 0 ? (
-        <div className="rounded-xl bg-surface px-4 py-6 text-sm text-muted shadow-[var(--shadow-border)]">
-          {tab === "words"
-            ? "No generator vocab left to swap."
-            : tab === "paragraphs"
-              ? "No paragraph-sized machine patches. Sentence fixes may still apply."
-              : "No open sentence flags."}
+      {tab !== "sources" ? (
+        <div className="shrink-0 px-3 py-2">
+          <RewriteBar scan={scan} open={shown} tab={tab} />
         </div>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {shown.map((s) => (
-            <li key={s.id}>
-              <SuggestionCard
-                suggestion={s}
-                scanId={scan.id}
-                active={activeId === s.id}
-                onSelect={() => onSelect(s.id)}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+      ) : null}
 
-      <EngineStrip scan={scan} />
-      <ForensicBlock scan={scan} />
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+        {tab === "sources" ? (
+          <SourceDesk scan={scan} />
+        ) : shown.length === 0 ? (
+          <div className="rounded-lg bg-surface px-3 py-5 text-sm text-muted shadow-[var(--shadow-border)]">
+            {tab === "words"
+              ? "No generator vocab left to swap."
+              : tab === "paragraphs"
+                ? "No paragraph-sized machine patches."
+                : "No open sentence flags."}
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {shown.map((s) => (
+              <li key={s.id}>
+                <SuggestionCard
+                  suggestion={s}
+                  scanId={scan.id}
+                  active={activeId === s.id}
+                  onSelect={() => onSelect(s.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-3 flex flex-col gap-2 pb-4">
+          <EngineStrip scan={scan} />
+          <ForensicBlock scan={scan} />
+        </div>
+      </div>
     </aside>
   );
 }
 
-function MixPill({
+function MiniMix({
   label,
   value,
   tone,
@@ -201,81 +199,14 @@ function MixPill({
   return (
     <div
       className={cn(
-        "rounded-lg px-2 py-2 text-center",
+        "rounded-md px-1.5 py-1 text-center",
         tone === "ai" && "bg-machine/15 text-machine",
         tone === "mixed" && "bg-mixed/15 text-mixed",
         tone === "human" && "bg-human/15 text-human",
       )}
     >
-      <div className="font-display text-xl tabular-nums leading-none">{value}%</div>
-      <div className="mt-1 text-[10px] uppercase tracking-wider">{label}</div>
-    </div>
-  );
-}
-
-function PassageMap({ scan }: { scan: ScanReport }) {
-  const windows = scan.windows ?? [];
-  if (windows.length < 2) return null;
-  return (
-    <div className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
-      <div className="text-sm font-medium">Passage map</div>
-      <div className="mt-3 flex gap-1">
-        {windows.map((w) => (
-          <div
-            key={w.index}
-            title={`${Math.round(w.aiScore * 100)}% machine-like — ${w.preview}`}
-            className={cn(
-              "h-8 flex-1 rounded-sm",
-              w.label === "ai" && "bg-machine",
-              w.label === "mixed" && "bg-mixed",
-              w.label === "human" && "bg-human",
-            )}
-          />
-        ))}
-      </div>
-      <p className="mt-2 text-xs text-subtle">
-        {scan.evidence?.hotWindows ?? 0} of {windows.length} windows hot
-      </p>
-    </div>
-  );
-}
-
-function ActionRow({ scan }: { scan: ScanReport }) {
-  const stripHidden = useSpotterStore((s) => s.stripHidden);
-  const [copied, setCopied] = useState(false);
-  const hasArtifacts = (scan.artifacts?.count ?? 0) > 0;
-
-  async function copyReport() {
-    const md = reportMarkdown(scan);
-    try {
-      await navigator.clipboard.writeText(md);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = md;
-      ta.setAttribute("readonly", "");
-      ta.style.position = "fixed";
-      ta.style.left = "-9999px";
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      ta.remove();
-    }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1800);
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <Button type="button" variant="secondary" className="w-full" onClick={() => void copyReport()}>
-        <Copy className="size-4" />
-        {copied ? "Copied" : "Copy committee report"}
-      </Button>
-      {hasArtifacts ? (
-        <Button type="button" variant="secondary" className="w-full" onClick={() => stripHidden(scan.id)}>
-          <Eraser className="size-4" />
-          Strip {scan.artifacts.count} hidden characters
-        </Button>
-      ) : null}
+      <div className="font-display text-base tabular-nums leading-none">{value}%</div>
+      <div className="text-[9px] uppercase tracking-wider">{label}</div>
     </div>
   );
 }
@@ -308,24 +239,22 @@ function RewriteBar({ scan, open, tab }: { scan: ScanReport; open: Suggestion[];
     onError: () => setErr("Rewrite pass failed."),
   });
 
-  if (tab === "words" || open.length === 0) return null;
+  if (tab === "words" || tab === "sources" || open.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div>
       <Button
         type="button"
         variant="solid"
+        size="sm"
         className="w-full"
         disabled={mut.isPending}
         onClick={() => mut.mutate()}
       >
         {mut.isPending ? <Loader2 className="animate-spin" /> : <PenLine className="size-4" />}
-        {tab === "paragraphs" ? "Rewrite paragraphs with Grok" : "Rewrite sentences with Grok"}
+        {tab === "paragraphs" ? "Rewrite paragraphs" : "Rewrite sentences"}
       </Button>
-      <p className="text-xs text-subtle">
-        Local replacements are already in each card. Grok is optional and spends xAI quota.
-      </p>
-      {err ? <p className="text-sm text-machine">{err}</p> : null}
+      {err ? <p className="mt-1 text-xs text-machine">{err}</p> : null}
     </div>
   );
 }
@@ -362,8 +291,8 @@ function SuggestionCard({
       ref={ref}
       id={`card-${s.id}`}
       className={cn(
-        "rounded-xl bg-surface p-4 shadow-[var(--shadow-border)] transition-[box-shadow] duration-[var(--motion-quick)]",
-        active && "shadow-[var(--shadow-border-hover)] ring-1 ring-accent/40",
+        "rounded-lg bg-surface p-3 shadow-[var(--shadow-border)]",
+        active && "ring-1 ring-accent/40",
       )}
     >
       <button type="button" className="w-full text-left" onClick={onSelect}>
@@ -371,46 +300,39 @@ function SuggestionCard({
           <Badge tone={SEV_TONE[s.severity]}>{s.severity}</Badge>
           <h3 className="text-sm font-medium">{s.title}</h3>
         </div>
-        <p className="mt-2 text-sm leading-relaxed text-muted">{s.issue}</p>
-        <p className="mt-2 text-sm text-fg">{s.recommendation}</p>
+        <p className="mt-1.5 text-sm leading-snug text-muted">{s.recommendation}</p>
       </button>
       {s.kind !== "artifact" ? (
-        <blockquote className="mt-3 max-h-40 overflow-y-auto rounded-lg bg-inset px-3 py-2 text-sm leading-relaxed text-muted">
+        <blockquote className="mt-2 max-h-24 overflow-y-auto rounded-md bg-inset px-2.5 py-1.5 text-xs leading-relaxed text-muted">
           {s.excerpt}
         </blockquote>
       ) : null}
       {isWord ? (
-        <div className="mt-3 flex flex-col gap-2">
-          <div className="text-[11px] uppercase tracking-wider text-subtle">Replace with</div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="solid" onClick={() => accept(scanId, s.id, s.rewrite)}>
-              <Check className="size-4" />
-              {s.rewrite}
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <Button type="button" size="sm" variant="solid" onClick={() => accept(scanId, s.id, s.rewrite)}>
+            <Check className="size-4" />
+            {s.rewrite}
+          </Button>
+          {alts.map((a) => (
+            <Button key={a} type="button" size="sm" variant="secondary" onClick={() => accept(scanId, s.id, a)}>
+              {a}
             </Button>
-            {alts.map((a) => (
-              <Button key={a} type="button" size="sm" variant="secondary" onClick={() => accept(scanId, s.id, a)}>
-                {a}
-              </Button>
-            ))}
-          </div>
-          {s.replaceAll ? (
-            <p className="text-xs text-subtle">Accept swaps every occurrence in the chapter.</p>
-          ) : null}
+          ))}
         </div>
       ) : null}
       {showTry || isDelete ? (
-        <div className="mt-2 rounded-lg bg-inset px-3 py-2 text-sm leading-relaxed">
-          <div className="text-[11px] uppercase tracking-wider text-subtle">
-            {isDelete ? "Remove" : s.kind === "paragraph" ? "Replacement paragraph" : "Replacement sentence"}
+        <div className="mt-2 rounded-md bg-inset px-2.5 py-1.5 text-xs leading-relaxed">
+          <div className="text-[10px] uppercase tracking-wider text-subtle">
+            {isDelete ? "Remove" : s.kind === "paragraph" ? "Replacement paragraph" : "Replacement"}
           </div>
-          <p className="mt-1 text-fg">{isDelete ? "Delete this sentence — it carries no claim." : s.rewrite}</p>
+          <p className="mt-0.5 text-fg">{isDelete ? "Delete this sentence." : s.rewrite}</p>
         </div>
       ) : null}
       {!isWord ? (
-        <div className="mt-3 flex gap-2">
+        <div className="mt-2 flex gap-2">
           <Button type="button" size="sm" variant="solid" onClick={() => accept(scanId, s.id)}>
             <Check className="size-4" />
-            {isDelete ? "Remove" : isClean ? "Strip" : s.kind === "paragraph" ? "Replace paragraph" : "Accept"}
+            {isDelete ? "Remove" : isClean ? "Strip" : "Accept"}
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={() => dismiss(scanId, s.id)}>
             <X className="size-4" />
@@ -418,7 +340,7 @@ function SuggestionCard({
           </Button>
         </div>
       ) : (
-        <div className="mt-3">
+        <div className="mt-2">
           <Button type="button" size="sm" variant="ghost" onClick={() => dismiss(scanId, s.id)}>
             <X className="size-4" />
             Dismiss
@@ -431,12 +353,12 @@ function SuggestionCard({
 
 function EngineStrip({ scan }: { scan: ScanReport }) {
   return (
-    <details className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]">
+    <details className="rounded-lg bg-surface px-3 py-2 shadow-[var(--shadow-border)]">
       <summary className="cursor-pointer text-sm font-medium">How it was scored</summary>
-      <ul className="mt-3 flex flex-col gap-2">
+      <ul className="mt-2 flex flex-col gap-1.5">
         {scan.results.map((r) => (
           <li key={r.id} className="flex items-center gap-2 text-xs">
-            <span className="w-28 shrink-0 truncate text-muted">{r.name.split(" / ")[0]}</span>
+            <span className="w-24 shrink-0 truncate text-muted">{r.name.split(" / ")[0]}</span>
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-inset">
               <div
                 className={cn(
@@ -484,16 +406,14 @@ function ForensicBlock({ scan }: { scan: ScanReport }) {
   const f = scan.forensic;
 
   return (
-    <details className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)]" open={!!f}>
+    <details className="rounded-lg bg-surface px-3 py-2 shadow-[var(--shadow-border)]" open={!!f}>
       <summary className="cursor-pointer text-sm font-medium">Faculty verdict</summary>
-      <p className="mt-2 text-xs text-subtle">
-        Optional Grok 4.5 close-read. Not required for the inline recommendations.
-      </p>
+      <p className="mt-1 text-xs text-subtle">Optional Grok close-read. Needs an xAI key.</p>
       <Button
         type="button"
         variant="secondary"
         size="sm"
-        className="mt-3"
+        className="mt-2"
         disabled={mut.isPending}
         onClick={() => mut.mutate()}
       >
@@ -502,7 +422,7 @@ function ForensicBlock({ scan }: { scan: ScanReport }) {
       </Button>
       {err ? <p className="mt-2 text-sm text-machine">{err}</p> : null}
       {f ? (
-        <div className="mt-3 flex flex-col gap-2">
+        <div className="mt-2 flex flex-col gap-1.5">
           <p className="text-sm leading-relaxed">{f.verdict}</p>
           <Badge tone={LABEL_TONE[f.label]}>{labelCopy(f.label)}</Badge>
         </div>

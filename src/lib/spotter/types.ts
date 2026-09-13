@@ -138,6 +138,16 @@ export interface ScanReport {
   artifacts: ArtifactReport;
   /** GPTZero-style document mix, percent of words. */
   mix: { ai: number; mixed: number; human: number };
+  /** FOCA-style PDF producer/creator, when the source was a file. */
+  docMeta?: {
+    title?: string;
+    author?: string;
+    creator?: string;
+    producer?: string;
+    creationDate?: string;
+    pageCount?: number;
+    tell?: string;
+  };
 }
 
 export interface ArxivPaper {

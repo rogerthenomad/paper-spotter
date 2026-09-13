@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { artifactSuggestions, scanArtifacts, stripArtifacts } from "./artifacts.ts";
 import { citationSuggestions } from "./citations.ts";
+import { extractOsint, producerTell, queryFor } from "./osint.ts";
 import { assessEvidence } from "./readiness.ts";
 import { SAMPLE_PAPERS } from "./samples.ts";
 import { applyRewriteToText, buildSuggestions, punctuationSuggestions } from "./suggestions.ts";
@@ -154,3 +155,35 @@ describe("paragraph replacements", () => {
     assert.notEqual(flags[0].rewrite, flags[0].excerpt);
   });
 });
+
+describe("academic OSINT extract", () => {
+  const bib = `Vaswani et al. (2017) introduced attention. See https://doi.org/10.5555/3295222.3295349 and arXiv:1706.03762. A fake cite (Nguyen et al., 2029) used doi 10.1234/this.does.not.exist. Homepage: https://example.edu/lab/paper.`;
+
+  it("pulls DOIs, arXiv ids, URLs, and author-year cites", () => {
+    const cites = extractOsint(bib);
+    assert.ok(cites.some((c) => c.kind === "doi" && c.doi?.startsWith("10.")));
+    assert.ok(cites.some((c) => c.kind === "arxiv" && c.arxivId === "1706.03762"));
+    assert.ok(cites.some((c) => c.kind === "url" && c.url?.includes("example.edu")));
+    assert.ok(cites.some((c) => c.kind === "cite" && c.authors?.includes("Vaswani")));
+    assert.ok(cites.some((c) => c.kind === "cite" && /Nguyen/.test(c.authors ?? "")));
+    assert.ok(!cites.some((c) => c.kind === "url" && /doi\.org/.test(c.url ?? "")));
+  });
+
+  it("builds a scholar query", () => {
+    const cites = extractOsint("Smith and Lee (2021) reported a bound.");
+    assert.ok(cites[0]);
+    assert.match(queryFor(cites[0]), /Smith/);
+  });
+});
+
+describe("PDF producer tells", () => {
+  it("flags ChatGPT-looking producers", () => {
+    const t = producerTell({ producer: "ChatGPT", creator: "OpenAI" });
+    assert.ok(t && /AI/.test(t));
+  });
+
+  it("stays quiet on pdfTeX", () => {
+    assert.equal(producerTell({ producer: "pdfTeX-1.40.25", creator: "LaTeX" }), undefined);
+  });
+});
+

@@ -87,6 +87,7 @@ export const useSpotterStore = create<SpotterState>()(
               createdAt: x.createdAt,
               keepDismissed: dismissedKeys(x.suggestions ?? []),
               acceptedSkip: skip,
+              docMeta: x.docMeta,
             });
             next.forensic = x.forensic;
             return next;
@@ -105,6 +106,7 @@ export const useSpotterStore = create<SpotterState>()(
               createdAt: x.createdAt,
               keepDismissed: dismissedKeys(x.suggestions ?? []),
               acceptedSkip: x.acceptedSkip ?? [],
+              docMeta: x.docMeta,
             });
             next.forensic = x.forensic;
             return next;

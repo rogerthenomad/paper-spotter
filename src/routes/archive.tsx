@@ -22,11 +22,11 @@ function ArchivePage() {
   const remove = useSpotterStore((s) => s.removeScan);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-4">
       <header className="max-w-2xl">
         <p className="text-[11px] uppercase tracking-[0.2em] text-muted">Local only</p>
-        <h1 className="mt-2 font-display text-4xl tracking-tight">Archive</h1>
-        <p className="mt-3 text-pretty text-muted">
+        <h1 className="mt-1 font-display text-2xl tracking-tight">Archive</h1>
+        <p className="mt-2 text-sm text-pretty text-muted">
           Reviews stay in this browser. Nothing is uploaded except optional Grok rewrites, the
           faculty verdict, and arXiv fetch.
         </p>

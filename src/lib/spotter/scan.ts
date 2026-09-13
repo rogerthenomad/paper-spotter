@@ -45,6 +45,7 @@ export function scanText(input: {
   createdAt?: string;
   keepDismissed?: string[];
   acceptedSkip?: string[];
+  docMeta?: ScanReport["docMeta"];
 }): ScanReport {
   const text = normalize(input.text);
   const artifacts = scanArtifacts(text);
@@ -65,6 +66,7 @@ export function scanText(input: {
       `${artifacts.count} hidden or look-alike characters. Strip them before a committee read.`,
     );
   }
+  if (input.docMeta?.tell) warnings.push(input.docMeta.tell);
   const clipped = wc > 14000 ? words(text).slice(0, 14000).join(" ") : text;
   const dismissed = new Set((input.keepDismissed ?? []).map(keyOf));
   const skip = new Set((input.acceptedSkip ?? []).map(keyOf));
@@ -112,6 +114,7 @@ export function scanText(input: {
     evidence,
     artifacts,
     mix: mixShare(clipped, suggestions, windows),
+    docMeta: input.docMeta,
   };
 }
 

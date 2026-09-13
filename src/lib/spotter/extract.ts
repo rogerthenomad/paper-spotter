@@ -1,10 +1,21 @@
+import { producerTell } from "./osint";
 import { normalize, words } from "./text";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const MIN_WORDS = 40;
 
+export interface DocMeta {
+  title?: string;
+  author?: string;
+  creator?: string;
+  producer?: string;
+  creationDate?: string;
+  pageCount?: number;
+  tell?: string;
+}
+
 export type ExtractResult =
-  | { ok: true; title: string; text: string }
+  | { ok: true; title: string; text: string; meta?: DocMeta }
   | { ok: false; error: string };
 
 function titleFromName(name: string): string {
@@ -15,7 +26,7 @@ function extOf(file: File): string {
   return (file.name.split(".").pop() ?? "").toLowerCase();
 }
 
-async function extractPdf(data: ArrayBuffer): Promise<string> {
+async function extractPdf(data: ArrayBuffer): Promise<{ text: string; meta: DocMeta }> {
   const pdfjs = await import("pdfjs-dist");
   const worker = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
   pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
@@ -31,7 +42,26 @@ async function extractPdf(data: ArrayBuffer): Promise<string> {
       .join(" ");
     pages.push(line);
   }
-  return pages.join("\n\n");
+
+  let meta: DocMeta = { pageCount: doc.numPages };
+  try {
+    const packed = await doc.getMetadata();
+    const info = (packed?.info ?? {}) as Record<string, unknown>;
+    const str = (k: string) => (typeof info[k] === "string" ? String(info[k]) : undefined);
+    meta = {
+      title: str("Title"),
+      author: str("Author"),
+      creator: str("Creator"),
+      producer: str("Producer"),
+      creationDate: str("CreationDate"),
+      pageCount: doc.numPages,
+    };
+    meta.tell = producerTell(meta);
+  } catch {
+    /* metadata is optional */
+  }
+
+  return { text: pages.join("\n\n"), meta };
 }
 
 async function extractDocx(data: ArrayBuffer): Promise<string> {
@@ -48,10 +78,13 @@ export async function extractPaperFile(file: File): Promise<ExtractResult> {
   const ext = extOf(file);
   const title = titleFromName(file.name);
   let raw = "";
+  let meta: DocMeta | undefined;
 
   try {
     if (ext === "pdf" || file.type === "application/pdf") {
-      raw = await extractPdf(await file.arrayBuffer());
+      const pdf = await extractPdf(await file.arrayBuffer());
+      raw = pdf.text;
+      meta = pdf.meta;
     } else if (
       ext === "docx" ||
       file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -88,5 +121,5 @@ export async function extractPaperFile(file: File): Promise<ExtractResult> {
     };
   }
 
-  return { ok: true, title, text };
+  return { ok: true, title: meta?.title?.trim() || title, text, meta };
 }

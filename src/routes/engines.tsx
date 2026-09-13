@@ -7,11 +7,11 @@ export const Route = createFileRoute("/engines")({ component: EnginesPage });
 
 function EnginesPage() {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-4">
       <header className="max-w-2xl">
         <p className="text-[11px] uppercase tracking-[0.2em] text-muted">Detector stack</p>
-        <h1 className="mt-2 font-display text-4xl tracking-tight">Engines</h1>
-        <p className="mt-3 text-pretty text-muted">
+        <h1 className="mt-1 font-display text-2xl tracking-tight">Engines</h1>
+        <p className="mt-2 text-sm text-pretty text-muted">
           2026 literature (RAID, Pangram/NBER windowing, Studies in Educational Evaluation) is
           blunt: a single “% AI” is not a verdict, hybrid chapters fool every detector, and short
           excerpts explode in false positives. This lab runs local statistical proxies, a

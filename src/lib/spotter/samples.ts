@@ -68,4 +68,16 @@ Furthermore, existing approaches have demonstrated remarkable performance across
 
 In conclusion, foundation models represent a testament to the ever-evolving landscape of artificial intelligence. Not only do they showcase impressive capabilities, but they also address this gap in the literature. We hope this paper inspires further research in this exciting and rapidly evolving field.`,
   },
+  {
+    id: "cite-check",
+    title: "Bibliography excerpt with a fake DOI",
+    field: "Citation desk",
+    kind: "mixed",
+    blurb: "Real Vaswani cite plus a hallucinated 2029 DOI — use the Sources tab.",
+    text: `Vaswani et al. (2017) remains the default citation for self-attention (https://doi.org/10.5555/3295222.3295349, arXiv:1706.03762). The original paper is worth rereading; the scaling claims people now attach to it are not in the text.
+
+Recent work (Nguyen et al., 2029) reports a forty percent gain on the same split using doi 10.1234/this.does.not.exist. That year is in the future and the DOI does not resolve. A committee will treat an invented reference as a fail, not a style issue.
+
+We also kept a lab note at https://example.edu/lab/preprint.pdf which is the sort of grey-literature URL Wayback is for. Studies have shown that unverifiable citations cluster in LLM literature reviews; name the paper or drop the claim.`,
+  },
 ];
